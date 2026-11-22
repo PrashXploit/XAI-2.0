@@ -44,7 +44,7 @@ export default function AuthPage() {
       const data = await api.login(form.email, form.password)
       localStorage.setItem('xai_token', data.access_token)
       localStorage.setItem('xai_user', JSON.stringify(data.user))
-      window.location.href = '/dashboard'
+      router.push('/dashboard')
     } catch (err) {
       setError(err.message)
       setLoading(false)
