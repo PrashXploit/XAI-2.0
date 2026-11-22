@@ -11,6 +11,10 @@ XAI‑Sec is a *playground* for anyone curious about how **explainable AI** can 
 
 The backend (Python + FastAPI) serves the predictions, while the frontend (React‑powered Next.js) gives you a clean UI to play with.
 
+# XAI‑Sec v2.0 🚀
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-blue)](https://prashxploit.github.io/xai/)
+
 > **Heads‑up:** The repo ships with an *offline fallback* – the UI works even if the backend isn’t running (perfect for GitHub Pages demos).
 
 ---
