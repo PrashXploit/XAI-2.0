@@ -151,13 +151,26 @@ function handleFallback(path, options = {}) {
     ]
 
     if (path === '/history/summary') {
-      const malwareCount = list.filter(i => i.scan_type === 'malware' && i.result.includes('Malware')).length
-      const idsThreatCount = list.filter(i => i.scan_type === 'ids' && !i.result.includes('Normal')).length
+      const threatCount = list.filter(i => {
+        const r = (i.result || '').toLowerCase()
+        return r.includes('attack') || r.includes('malware') || r.includes('dos')
+      }).length
       return {
         total_scans: list.length,
-        malware_detected: malwareCount,
-        intrusions_detected: idsThreatCount,
-        clean_scans: list.length - malwareCount - idsThreatCount
+        threats_detected: threatCount,
+        benign_scans: list.length - threatCount,
+        average_confidence: 0.972,
+        severity_breakdown: {
+          Critical: Math.floor(threatCount * 0.6),
+          High: Math.floor(threatCount * 0.3),
+          Medium: Math.floor(threatCount * 0.1),
+          Low: list.length - threatCount
+        },
+        by_scan_type: {
+          IDS: list.filter(i => (i.scan_type || '').toUpperCase() === 'IDS').length,
+          Malware: list.filter(i => (i.scan_type || '').toUpperCase() === 'MALWARE').length
+        },
+        latest_scan: list[0] || null
       }
     }
 
@@ -205,26 +218,32 @@ export const api = {
 
     const result = {
       prediction: pred,
+      prediction_index: isThreat ? 1 : 0,
       confidence: parseFloat(conf.toFixed(4)),
+      is_threat: isThreat,
       threat_level: isThreat ? 'High' : 'Low',
       shap_values: [
-        { feature: 'src_bytes', importance: isThreat ? 0.42 : -0.12, description: 'Source to destination byte volume' },
-        { feature: 'count', importance: isThreat ? 0.38 : -0.08, description: 'Connections to same host in past 2 seconds' },
-        { feature: 'srv_serror_rate', importance: isThreat ? 0.29 : -0.05, description: 'SYN error rate across connections' },
-        { feature: 'dst_bytes', importance: -0.15, description: 'Destination byte counter' },
-        { feature: 'same_srv_rate', importance: 0.11, description: 'Rate of connections to same service' }
+        { feature: 'src_bytes', value: isThreat ? 0.4215 : -0.1245 },
+        { feature: 'count', value: isThreat ? 0.3812 : -0.0821 },
+        { feature: 'srv_serror_rate', value: isThreat ? 0.2914 : -0.0512 },
+        { feature: 'dst_bytes', value: -0.1542 },
+        { feature: 'same_srv_rate', value: 0.1105 }
       ],
-      features: {
+      instance: {
         src_bytes: isThreat ? 42800 : 340,
         count: isThreat ? 512 : 8,
         srv_serror_rate: isThreat ? 0.98 : 0.0,
-        protocol: 'TCP',
-        service: 'http'
+        protocol_type: 'tcp',
+        service: 'http',
+        flag: 'SF',
+        dst_bytes: 1450,
+        same_srv_rate: 1.0,
+        diff_srv_rate: 0.0
       }
     }
 
     // Save scan to history
-    saveLocalScan('ids', file ? file.name : `traffic_sample_${instanceIdx}.csv`, pred, result.confidence)
+    saveLocalScan('IDS', file ? file.name : `traffic_sample_${instanceIdx}.csv`, pred, result.confidence)
     return result
   },
 
@@ -254,18 +273,32 @@ export const api = {
 
     const result = {
       prediction: pred,
+      prediction_index: isMalware ? 1 : 0,
       confidence: conf,
+      is_threat: isMalware,
+      file_label: file ? file.name : `sample_${instanceIdx}.exe`,
       entropy: parseFloat(entropy.toFixed(3)),
       is_suspicious: isMalware,
-      lime_explanation: [
-        { feature: 'Shannon Entropy (>7.0)', weight: isMalware ? 0.54 : -0.42, sign: isMalware ? 'positive' : 'negative' },
-        { feature: 'Import: VirtualAllocEx', weight: isMalware ? 0.38 : 0.0, sign: 'positive' },
-        { feature: 'PE Section: .upx0 (Packer)', weight: isMalware ? 0.31 : 0.0, sign: 'positive' },
-        { feature: 'Valid Digital Signature', weight: isMalware ? -0.05 : -0.35, sign: 'negative' }
-      ]
+      shap_values: [
+        { feature: 'file_entropy (>7.0)', value: isMalware ? 0.5412 : -0.4215 },
+        { feature: 'api_VirtualAllocEx', value: isMalware ? 0.3842 : 0.0 },
+        { feature: 'suspicious_packing', value: isMalware ? 0.3125 : -0.1504 },
+        { feature: 'SizeOfCode', value: 0.1842 },
+        { feature: 'ImportsNbDLL', value: isMalware ? -0.0521 : -0.2514 }
+      ],
+      instance: {
+        file_entropy: parseFloat(entropy.toFixed(3)),
+        suspicious_packing: isMalware ? 1 : 0,
+        SizeOfCode: file ? file.size : 65536,
+        AddressOfEntryPoint: 4096,
+        SectionsMeanEntropy: parseFloat((entropy * 0.9).toFixed(3)),
+        ImportsNbDLL: 4,
+        ImportsNb: 24,
+        Characteristics: 258
+      }
     }
 
-    saveLocalScan('malware', file ? file.name : 'executable_sample.exe', pred, conf)
+    saveLocalScan('Malware', file ? file.name : `sample_${instanceIdx}.exe`, pred, conf)
     return result
   },
 
