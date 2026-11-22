@@ -3,11 +3,13 @@
  * Supports live FastAPI backend and seamless offline/GitHub Pages demo mode.
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || (
-  typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://127.0.0.1:8000'
-    : ''
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === '0.0.0.0'
 )
+
+const BASE = process.env.NEXT_PUBLIC_API_URL || (isLocal ? 'http://127.0.0.1:8000' : '')
 
 function getToken() {
   if (typeof window === 'undefined') return null

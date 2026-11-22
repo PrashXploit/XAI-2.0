@@ -15,10 +15,14 @@ from database.database_manager import create_tables
 
 app = FastAPI(title="XAI-Sec API", version="2.0.0")
 
-# ── CORS (allow the Next.js dev server) ──────────────────────────────────────
+# ── CORS (allow local dev & GitHub Pages) ────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://prashxploit.github.io",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
